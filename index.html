@@ -369,10 +369,10 @@ const Model = (() => {
 
 const $ = id => document.getElementById(id);
 const DEFAULT_ROWS = [
-  { room: 22, b: 34.5, low: 35.5, high: 35.5, air: 37 },
-  { room: 17.5, b: 34.5, low: 39.5, high: 40, air: 37 }
+  { room: 22, b: 35.5, low: 35.5, high: 35.5, air: 37 },
+  { room: 17.5, b: 35.5, low: 39.8, high: 39.8, air: 37 }
 ];
-const KEY = "cold-spot-offset-v1";
+const KEY = "cold-spot-offset-v2";
 const fmt = (v, d = 2) => v.toFixed(d);
 const signed = (v, d = 2) => Number(v.toFixed(d)) === 0
   ? (0).toFixed(d)

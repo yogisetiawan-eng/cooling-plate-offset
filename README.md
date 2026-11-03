@@ -23,11 +23,11 @@ Open `index.html` in a browser. It is one self-contained page and needs no insta
 For an A target of 35.5 °C and chamber air of 37 °C:
 
 ```
-B setpoint = 29.19 + 0.240 × room
-Offset, A − B = 6.31 − 0.240 × room
+B setpoint = 31.22 + 0.193 × room
+Offset, A − B = 4.28 − 0.193 × room
 ```
 
-This comes from two tests at a B reading of 34.5 °C, at 22 and 17.5 °C room, so it is not validated yet. How strongly B moves A is still uncertain, at about 2.8 to 6.3 K per 1 K. A test at a new B setpoint narrows that range. The page suggests the next test.
+This comes from two tests with B at 35.5 °C: A read 35.5 °C at 22 °C room and 39.8 °C at 17.5 °C room. It is not validated yet. How strongly B moves A is still uncertain, at about 3.3 to 10 K per 1 K. A test at a new B setpoint narrows that range. The page suggests the next test.
 
 ## Method
 
