@@ -1,0 +1,626 @@
+<!doctype html>
+<html lang="en">
+<head>
+<title>Cooling Plate Offset</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: an instrument panel. Settings on the left, one large readout on the right,
+   then the picture of the hardware, the curves, and the test data. */
+:root {
+  --bg: #e9eff2; --surface: #f8fafb; --fg: #13232b; --muted: #526772; --line: #c4d1d7;
+  --accent: #0a6c96; --warm: #b4470f;
+  --ok: #17754f; --warn: #8f5a00; --crit: #ad2318;
+  --chamber: #cf2a2a; --insul: #3f4fc4; --insul-fill: #3f4fc41c; --pad: #b89a00; --pad-fill: #f2d21f; --plate: #178a48; --sensor: #8d3fa8;
+  --display: "Barlow Semi Condensed", "Arial Narrow", Arial, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+  --mono: "IBM Plex Mono", Consolas, "Courier New", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e171c; --surface: #16232a; --fg: #e2ebef; --muted: #9ab0ba; --line: #2d404a;
+    --accent: #62c3e9; --warm: #f0935e;
+    --ok: #55c99a; --warn: #e7b352; --crit: #f58a7f;
+    --chamber: #f0706c; --insul: #8d9bf2; --insul-fill: #8d9bf226; --pad: #e8cc4a; --pad-fill: #b89a00; --plate: #55c98a; --sensor: #d59cea; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e171c; --surface: #16232a; --fg: #e2ebef; --muted: #9ab0ba; --line: #2d404a;
+  --accent: #62c3e9; --warm: #f0935e;
+  --ok: #55c99a; --warn: #e7b352; --crit: #f58a7f;
+  --chamber: #f0706c; --insul: #8d9bf2; --insul-fill: #8d9bf226; --pad: #e8cc4a; --pad-fill: #b89a00; --plate: #55c98a; --sensor: #d59cea; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+[hidden] { display: none !important; }
+body {
+  margin: 0; background: var(--bg); color: var(--fg); font: 400 15px/1.5 var(--body);
+  padding-block: 28px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.app { max-width: 980px; margin: 0 auto; display: grid; gap: 32px; }
+h1, h2 { font-family: var(--display); font-weight: 600; margin: 0; text-wrap: balance; }
+h1 { font-size: 2.1rem; line-height: 1.1; }
+h2 { font-size: 1.3rem; line-height: 1.2; }
+p { margin: 0; }
+.lede { color: var(--muted); max-width: 64ch; margin-top: 6px; }
+.panel { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 32px; align-items: start; }
+.settings { display: grid; gap: 16px; }
+label { display: grid; gap: 4px; font-weight: 500; }
+input[type="number"], select {
+  width: 100%; font: 500 1rem var(--mono); color: var(--fg); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 4px; padding: 8px 10px;
+}
+input[type="range"] { width: 100%; accent-color: var(--accent); margin: 4px 0 0; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; align-items: end; }
+.readout { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 22px 24px; display: grid; gap: 18px; min-width: 0; }
+.tag-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.tag { font-size: .8rem; font-weight: 600; padding: 2px 9px; border-radius: 3px; border: 1px solid currentColor; }
+.tag.ok { color: var(--ok); } .tag.warn { color: var(--warn); } .tag.crit { color: var(--crit); } .tag.info { color: var(--muted); }
+.main-label { color: var(--muted); font-weight: 500; }
+.big { font: 500 clamp(2.6rem, 8vw, 3.9rem)/1.05 var(--mono); letter-spacing: -.02em; overflow-wrap: anywhere; }
+.big small { font-size: .42em; color: var(--muted); letter-spacing: 0; }
+.range { font: 400 .95rem var(--mono); color: var(--muted); margin-top: 4px; }
+.facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 22px; border-top: 1px solid var(--line); padding-top: 16px; }
+.fact { min-width: 0; }
+.fact span { display: block; color: var(--muted); font-size: .85rem; }
+.fact b { display: block; font: 500 1.25rem/1.25 var(--mono); }
+.fact i { display: block; font: 400 .8rem var(--mono); color: var(--muted); }
+.note { font-size: .9rem; color: var(--muted); }
+.note.alert { color: var(--warn); }
+.layout { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+.diagram svg { display: block; width: 100%; height: auto; }
+.diagram text { fill: var(--fg); font: 500 14px var(--body); }
+.diagram text.small { fill: var(--muted); font: 400 12.5px var(--body); }
+.diagram text.mark { fill: var(--sensor); font: 600 17px var(--display); }
+.key { display: grid; gap: 12px; margin: 0; }
+.key div { display: grid; grid-template-columns: 2.4em minmax(0, 1fr); gap: 8px; }
+.key dt { font: 600 1.05rem var(--display); color: var(--sensor); }
+.key dd { margin: 0; font-size: .92rem; color: var(--fg); }
+.plate-in { display: grid; gap: 12px; margin-top: 16px; }
+.chart-wrap { display: grid; gap: 10px; }
+.chart { width: 100%; min-height: 280px; }
+.chart svg { display: block; width: 100%; height: 280px; }
+.chart text { fill: var(--muted); font: 12px var(--mono); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: .85rem; color: var(--muted); }
+.legend i { display: inline-block; width: 16px; height: 0; border-top: 3px solid var(--accent); vertical-align: middle; margin-right: 6px; }
+.legend i.zone { height: 10px; border: 0; background: var(--muted); opacity: .25; }
+.tests { display: grid; gap: 12px; }
+.tests-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 16px; }
+.table-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th { text-align: left; font-size: .82rem; font-weight: 600; color: var(--muted); padding: 4px 8px 6px 0; white-space: nowrap; }
+td { padding: 4px 8px 4px 0; border-top: 1px solid var(--line); font-family: var(--mono); white-space: nowrap; }
+td input[type="number"] { width: 5.6em; padding: 5px 6px; font-size: .92rem; }
+button { font: 600 .9rem var(--body); color: var(--accent); background: transparent; border: 1px solid var(--accent); border-radius: 4px; padding: 7px 12px; cursor: pointer; }
+button.quiet { color: var(--muted); border-color: var(--line); padding: 4px 8px; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.formula { font: 400 .85rem/1.6 var(--mono); color: var(--muted); overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .panel, .layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .readout { padding: 18px 16px; }
+  .facts { grid-template-columns: minmax(0, 1fr); }
+}
+</style>
+</head>
+<body>
+<main class="app">
+  <header>
+    <h1>Cooling Plate Offset</h1>
+    <p class="lede">Set the room temperature to get the B setpoint that holds inner bottom surface A on target, and the offset between A and plate sensor B.</p>
+  </header>
+
+  <section class="panel" aria-label="Calculator">
+    <form class="settings" id="form">
+      <label for="room">Room temperature (°C)
+        <input id="room" type="number" step="0.1" value="20">
+        <input id="roomSlider" type="range" min="14" max="32" step="0.5" value="20" aria-label="Room temperature slider">
+      </label>
+      <div class="pair">
+        <label for="chamber">Chamber air (°C)
+          <input id="chamber" type="number" step="0.1" value="37">
+        </label>
+        <label for="target">A target (°C)
+          <input id="target" type="number" step="0.1" value="35.5">
+        </label>
+      </div>
+    </form>
+
+    <section class="readout" aria-live="polite">
+      <div class="tag-row" id="tags"></div>
+      <div>
+        <div class="main-label">Offset, A − B</div>
+        <div class="big" id="offset">–</div>
+        <div class="range" id="offsetRange"></div>
+      </div>
+      <div class="facts">
+        <div class="fact"><span>B setpoint</span><b id="spValue">–</b><i id="spRange"></i></div>
+        <div class="fact"><span>Heater power, estimate</span><b id="powerValue">–</b><i id="powerRange"></i></div>
+      </div>
+      <p class="note" id="message"></p>
+    </section>
+  </section>
+
+  <section aria-label="Hardware layout" class="layout">
+    <div class="diagram">
+      <h2>Where A, B and L are</h2>
+      <svg viewBox="0 0 540 412" role="img" aria-label="Cross section of the chamber. A is on the inner floor above the heater pad. The pad is open to the room underneath. Two plates run down from the pad edges and B sits near the end of one plate.">
+        <path fill-rule="evenodd" fill="var(--insul-fill)" stroke="none" d="M40 14H500V336H361L330 306H210L179 336H40Z M100 44V294H440V44Z"/>
+        <path fill="none" stroke="var(--insul)" stroke-width="4" d="M179 336H40V14H500V336H361"/>
+        <rect x="100" y="44" width="340" height="250" fill="none" stroke="var(--chamber)" stroke-width="4"/>
+        <text x="270" y="33" text-anchor="middle">Insulation</text>
+        <text x="270" y="118" text-anchor="middle">Chamber air</text>
+        <text class="small" x="270" y="136" text-anchor="middle">316 stainless wall, 1 mm</text>
+        <rect x="210" y="294" width="120" height="12" fill="var(--pad-fill)" stroke="var(--pad)" stroke-width="2"/>
+        <line x1="212" y1="305" x2="120" y2="392" stroke="var(--plate)" stroke-width="5" stroke-linecap="round"/>
+        <line x1="328" y1="305" x2="420" y2="392" stroke="var(--plate)" stroke-width="5" stroke-linecap="round"/>
+
+        <circle cx="270" cy="288" r="6" fill="var(--sensor)"/>
+        <line x1="266" y1="283" x2="234" y2="243" stroke="var(--sensor)" stroke-width="1.5"/>
+        <text class="mark" x="232" y="236" text-anchor="middle">A</text>
+        <text class="small" x="232" y="218" text-anchor="middle">Inner bottom surface</text>
+
+        <line x1="318" y1="294" x2="350" y2="262" stroke="var(--pad)" stroke-width="1.5"/>
+        <text x="352" y="250">Heater pad</text>
+
+        <text class="small" x="270" y="329" text-anchor="middle">No insulation</text>
+        <text class="small" x="270" y="345" text-anchor="middle">under the pad</text>
+        <text x="270" y="392" text-anchor="middle">Room air</text>
+
+        <circle cx="140" cy="373" r="6" fill="var(--sensor)"/>
+        <line x1="80" y1="372" x2="133" y2="373" stroke="var(--sensor)" stroke-width="1.5"/>
+        <text class="mark" x="12" y="368">B</text>
+        <text class="small" x="12" y="385">Control sensor</text>
+
+        <line x1="339" y1="294" x2="431" y2="381" stroke="var(--muted)" stroke-width="1.5"/>
+        <line x1="333" y1="300" x2="345" y2="288" stroke="var(--muted)" stroke-width="1.5"/>
+        <line x1="425" y1="387" x2="437" y2="375" stroke="var(--muted)" stroke-width="1.5"/>
+        <text class="mark" x="440" y="352">L</text>
+        <text class="small" x="440" y="369">Plate length</text>
+      </svg>
+      <p class="note">Based on your sketch. Not to scale.</p>
+    </div>
+    <div>
+      <dl class="key">
+        <div><dt>A</dt><dd>Inner bottom surface over the heater, logged only.</dd></div>
+        <div><dt>B</dt><dd>Control sensor on the plate, outside the insulation.</dd></div>
+        <div><dt>L</dt><dd>Plate length, used for the plate's heat loss to the room. 0.3 m is an assumed value.</dd></div>
+        <div><dt>Pad</dt><dd id="padText"></dd></div>
+        <div><dt>Wall</dt><dd>316 stainless, 1 mm. It spreads heat sideways poorly, so A follows the pad directly above it far more than the plates at the pad edges.</dd></div>
+      </dl>
+      <div class="plate-in">
+        <div class="pair">
+          <label for="padArea">Pad area (mm²)
+            <input id="padArea" type="number" step="1" value="68434">
+          </label>
+          <label for="padPower">Heater power (W)
+            <input id="padPower" type="number" step="1" value="30">
+          </label>
+        </div>
+        <label for="plateLen">Plate length L (m)
+          <input id="plateLen" type="number" step="0.01" min="0.02" value="0.3">
+        </label>
+      </div>
+    </div>
+  </section>
+
+  <section class="chart-wrap" aria-label="Offset chart">
+    <h2>Offset across room temperatures</h2>
+    <div class="chart" id="offsetChart"></div>
+    <div class="legend">
+      <span><i></i>Offset with A on target</span>
+      <span><i class="zone"></i>Outside tested rooms</span>
+      <span>Shaded bands show the 90% range</span>
+    </div>
+  </section>
+
+  <section class="chart-wrap" aria-label="Setpoint chart">
+    <h2>B setpoint to hold A on target</h2>
+    <div class="chart" id="setpointChart"></div>
+    <p class="formula" id="formula"></p>
+  </section>
+
+  <section class="tests" aria-label="Test data">
+    <div class="tests-head">
+      <h2>Test data</h2>
+      <span class="note" id="fitStatus"></span>
+    </div>
+    <p class="note">Add one row per steady-state test. Saved in this browser only. Readings are treated as approximate: room ±1 K, A and B about ±0.5 K, chamber air about ±0.4 K.</p>
+    <p class="note" id="nextTest"></p>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Room °C</th><th>B °C</th><th>A low °C</th><th>A high °C</th><th>Air °C</th><th>Model A °C</th><th>Error K</th><th><span hidden>Remove</span></th></tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="actions">
+      <button type="button" id="addRow">Add test</button>
+      <button type="button" id="resetRows" class="quiet">Restore original two tests</button>
+    </div>
+  </section>
+</main>
+
+<script>
+/*MODEL*/
+const Model = (() => {
+  const SIGMA = 5.67e-8, N = 400;
+  const SD = { roomShared: .3, roomTest: .5, bShared: .25, bTest: .05, aShared: .25, aTest: .15, airShared: .2, airTest: .1 };
+  const pct = (list, q) => {
+    const s = [...list].sort((a, b) => a - b), i = (s.length - 1) * q, f = Math.floor(i);
+    return s[f] + (s[Math.min(f + 1, s.length - 1)] - s[f]) * (i - f);
+  };
+  const solve = (M, v) => {
+    const n = v.length, a = M.map((r, i) => [...r, v[i]]);
+    for (let i = 0; i < n; i++) {
+      let p = i;
+      for (let k = i + 1; k < n; k++) if (Math.abs(a[k][i]) > Math.abs(a[p][i])) p = k;
+      if (Math.abs(a[p][i]) < 1e-9) return null;
+      [a[i], a[p]] = [a[p], a[i]];
+      for (let k = 0; k < n; k++) {
+        if (k === i) continue;
+        const f = a[k][i] / a[i][i];
+        for (let j = i; j <= n; j++) a[k][j] -= f * a[i][j];
+      }
+    }
+    return a.map((r, i) => r[n] / r[i]);
+  };
+  const lsq = (cols, y) => {
+    const scale = cols.map(c => Math.max(...c.map(Math.abs)) || 1);
+    const s = cols.map((c, i) => c.map(v => v / scale[i]));
+    const M = s.map(a => s.map(b => a.reduce((t, v, i) => t + v * b[i], 0)));
+    const v = s.map(a => a.reduce((t, x, i) => t + x * y[i], 0));
+    const x = solve(M, v);
+    return x && x.map((q, i) => q / scale[i]);
+  };
+  function rng(seed) {
+    let a = seed >>> 0;
+    const u = () => {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    return { u, between: (l, h) => l + (h - l) * u(),
+      normal: sd => sd * Math.sqrt(-2 * Math.log(u() || 1e-12)) * Math.cos(2 * Math.PI * u()) };
+  }
+  function ensemble(rows, len, area) {
+    const H = 1.42 / Math.pow(len, 0.25), r = rng(20261103), side = Math.sqrt(area);
+    const loss = (t, room, n, eps) => H * Math.pow(Math.max(t - room, 1e-6), n)
+      + eps * SIGMA * (Math.pow(t + 273.15, 4) - Math.pow(room + 273.15, 4));
+    const bs = rows.map(x => x.b);
+    const stepTest = rows.length >= 3 && Math.max(...bs) - Math.min(...bs) >= 0.3;
+    const unknowns = stepTest ? 3 : 2;
+    const draws = [];
+    let tried = 0;
+    for (let k = 0; k < N * 4 && draws.length < N; k++) {
+      tried++;
+      const n = r.between(1.15, 1.33), phi = r.between(0, .03), d = stepTest ? 0 : r.between(0, 5);
+      const eps = r.between(.05, .2);   // bare aluminium, no surface finish
+      const rb = r.normal(SD.roomShared), bb = r.normal(SD.bShared), ab = r.normal(SD.aShared), cb = r.normal(SD.airShared);
+      // Tests at the same room temperature share one room and chamber error,
+      // because a step test follows the earlier test under the same conditions.
+      const shared = [];
+      const t = rows.map(x => {
+        let e = shared.find(g => Math.abs(g.at - x.room) <= 1);
+        if (!e) {
+          e = { at: x.room, room: r.normal(SD.roomTest), air: r.normal(SD.airTest) };
+          shared.push(e);
+        }
+        const room = x.room + rb + e.room, b = x.b + bb + r.normal(SD.bTest);
+        const a = r.between(x.low, x.high) + ab + r.normal(SD.aTest), air = x.air + cb + e.air;
+        const tp = b + phi * (b - room);
+        return { room, a, air, tp };
+      });
+      const cols = [t.map(x => loss(x.tp, x.room, n, eps)), t.map(x => -(x.air + d - x.tp))];
+      if (stepTest) cols.push(t.map(() => -1));
+      const x = lsq(cols, t.map(v => v.a - v.tp));
+      if (!x || !(x[0] > 0) || x[1] < 0 || (stepTest && x[2] < 0)) continue;
+      draws.push({ n, phi, d, eps, c: x[0], kappa: x[1], K0: stepTest ? x[2] : 0, rb, bb, ab, cb,
+        mPad: r.between(.6, 1.4), ePad: r.between(.8, .95), hIn: r.between(2, 8),
+        gAB: Math.exp(r.between(Math.log(.2), Math.log(1))), fed: r.u() });
+    }
+    const offset = (p, b, room, air) => {
+      const bt = b + p.bb, rt = room + p.rb, at = air + p.cb, tp = bt + p.phi * (bt - rt);
+      return tp + p.c * loss(tp, rt, p.n, p.eps) - p.K0 - p.kappa * (at + p.d - tp) - p.ab - b;
+    };
+    const setpoint = (p, target, room, air) => {
+      let lo = 15, hi = 50;
+      for (let i = 0; i < 32; i++) {
+        const m = (lo + hi) / 2;
+        if (m + offset(p, m, room, air) > target) hi = m; else lo = m;
+      }
+      return (lo + hi) / 2;
+    };
+    const power = (p, a, b, room, air) => {
+      const dt = Math.max(a - room, 1e-3), bt = b + p.bb, tp = bt + p.phi * (bt - room - p.rb);
+      // Part of the heat reaching the plate without passing A may also come from the pad.
+      const bypass = Math.max(p.gAB * (p.K0 + p.kappa * (air + p.cb + p.d - tp)), 0);
+      return area * (p.mPad * .59 * Math.pow(dt / side, .25) * dt
+        + p.ePad * SIGMA * (Math.pow(a + 273.15, 4) - Math.pow(room + 273.15, 4))
+        + p.hIn * (a - air)) + p.gAB * (a - b) + p.fed * bypass;
+    };
+    const band = list => ({ lo: pct(list, .05), mid: pct(list, .5), hi: pct(list, .95) });
+    const at = (room, air, target) => {
+      const sp = [], off = [], q = [];
+      for (const p of draws) {
+        const s = setpoint(p, target, room, air);
+        sp.push(s);
+        off.push(target - s);
+        q.push(power(p, target, s, room, air));
+      }
+      return { sp: band(sp), off: band(off), q: band(q) };
+    };
+    const gain = (b, room, air) => band(draws.map(p =>
+      1 + (offset(p, b + 1e-3, room, air) - offset(p, b - 1e-3, room, air)) / 2e-3));
+    const aBand = (b, room, air) => band(draws.map(p => b + offset(p, b, room, air)));
+    const predictA = (b, room, air) => aBand(b, room, air).mid;
+    return { draws, tried, unknowns, stepTest, at, gain, aBand, predictA, offset, power };
+  }
+  return { ensemble, pct };
+})();
+/*END*/
+
+const $ = id => document.getElementById(id);
+const DEFAULT_ROWS = [
+  { room: 22, b: 34.5, low: 35.5, high: 35.5, air: 37 },
+  { room: 17.5, b: 34.5, low: 39.5, high: 40, air: 37 }
+];
+const KEY = "cold-spot-offset-v1";
+const fmt = (v, d = 2) => v.toFixed(d);
+const signed = (v, d = 2) => Number(v.toFixed(d)) === 0
+  ? (0).toFixed(d)
+  : (v > 0 ? "+" : "−") + Math.abs(v).toFixed(d);
+const span = (b, d = 2) => `${fmt(b.lo, d)} to ${fmt(b.hi, d)}`;
+const spanSigned = (b, d = 2) => `${signed(b.lo, d)} to ${signed(b.hi, d)}`;
+let rows = DEFAULT_ROWS.map(r => ({ ...r }));
+let cache = { key: "", model: null, curveKey: "", curve: null };
+
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(KEY));
+    if (s && Array.isArray(s.rows) && s.rows.length) rows = s.rows.map(r => {
+      const o = {};
+      for (const k of ["room", "b", "low", "high", "air"]) o[k] = r[k] === null ? NaN : r[k];
+      return o;
+    });
+    if (s && s.len) $("plateLen").value = s.len;
+    if (s && s.area) $("padArea").value = s.area;
+    if (s && s.power) $("padPower").value = s.power;
+  } catch (e) { /* the defaults stay in place */ }
+}
+function save() {
+  try {
+    localStorage.setItem(KEY, JSON.stringify({ rows, len: $("plateLen").value, area: $("padArea").value, power: $("padPower").value }));
+  } catch (e) { /* storage is optional */ }
+}
+
+const validRows = () => rows.filter(r => ["room", "b", "low", "high", "air"].every(k => Number.isFinite(r[k])));
+
+function drawRows() {
+  const fields = ["room", "b", "low", "high", "air"];
+  $("rows").innerHTML = rows.map((r, i) => `<tr>${fields.map(k =>
+    `<td><input id="row${i}-${k}" data-i="${i}" data-k="${k}" type="number" step="0.1" value="${Number.isFinite(r[k]) ? r[k] : ""}" aria-label="Test ${i + 1} ${k}"></td>`
+  ).join("")}<td id="row${i}-model">–</td><td id="row${i}-err">–</td><td><button type="button" class="quiet" data-remove="${i}" aria-label="Remove test ${i + 1}">Remove</button></td></tr>`).join("");
+}
+
+function getModel(good, len, area) {
+  const key = JSON.stringify([good, len, area]);
+  if (cache.key !== key) {
+    cache = { key, model: null, curveKey: "", curve: null };
+    const rooms = good.map(r => r.room);
+    if (good.length >= 2 && Math.max(...rooms) - Math.min(...rooms) >= 1) {
+      const m = Model.ensemble(good, len, area);
+      cache.model = m.draws.length >= 100 ? m : "conflict";
+    }
+  }
+  return cache.model;
+}
+
+function update() {
+  const room = parseFloat($("room").value), air = parseFloat($("chamber").value), target = parseFloat($("target").value);
+  const len = parseFloat($("plateLen").value);
+  const area = parseFloat($("padArea").value) / 1e6, pmax = parseFloat($("padPower").value);
+  const good = validRows();
+  rows.forEach((r, i) => {
+    if ($(`row${i}-model`)) $(`row${i}-model`).textContent = "–";
+    if ($(`row${i}-err`)) $(`row${i}-err`).textContent = "–";
+  });
+  save();
+
+  if (![area, pmax, len].every(v => Number.isFinite(v) && v > 0)) return fail("Enter a positive pad area, heater power and plate length.");
+  $("padText").textContent = `Silicone heater, ${Math.round(area * 1e6).toLocaleString("en-US")} mm², about ${Math.round(Math.sqrt(area) * 1e3)} mm square. ${fmt(pmax, 0)} W gives ${fmt(pmax / area, 0)} W/m². Open to the room underneath, so A loses heat directly.`;
+  const m = getModel(good, len, area);
+  if (!m) return fail("Add at least two complete tests, at least 1 °C apart in room temperature.");
+  if (m === "conflict") return fail("These tests cannot all fit the plate model. Check the newest row, and confirm each test had settled.");
+  if (![room, air, target].every(Number.isFinite)) return fail("Fill in all three temperatures.");
+  if (air < 25 || air > 45 || target < 25 || target > 45) return fail("Chamber air and A target must be between 25 and 45 °C.");
+  if (room >= air) return fail("Room temperature must be below the chamber air.");
+
+  const now = m.at(room, air, target);
+  const rooms = good.map(r => r.room), tMin = Math.min(...rooms), tMax = Math.max(...rooms);
+  const airs = good.map(r => r.air);
+  const tags = [];
+  let msg = "", alert = false;
+
+  $("offset").innerHTML = `${signed(now.off.mid)} <small>K</small>`;
+  $("offsetRange").textContent = `90% range ${spanSigned(now.off)} K`;
+  $("spValue").textContent = `${fmt(now.sp.mid)} °C`;
+  $("spRange").textContent = `${span(now.sp)} °C`;
+  const watts = v => fmt(Math.min(Math.max(v, 0), pmax), 0);
+  $("powerValue").textContent = `${watts(now.q.mid)} W of ${fmt(pmax, 0)} W`;
+  $("powerRange").textContent = `${watts(now.q.lo)} to ${watts(now.q.hi)} W`;
+
+  if (now.q.mid <= 0) {
+    tags.push(["crit", "Heater off"]);
+    msg = `The room is warm enough that the heater turns off, so A will sit above ${fmt(target, 1)} °C.`;
+    alert = true;
+  } else if (now.q.mid >= pmax) {
+    tags.push(["crit", "Heater at full power"]);
+    msg = `The heater cannot keep A at ${fmt(target, 1)} °C in this room.`;
+    alert = true;
+  } else if (now.q.lo <= 0 || now.q.hi >= pmax) {
+    tags.push(["warn", "Heater near its limit"]);
+  } else tags.push(["ok", "Heater has margin"]);
+
+  const inside = room >= tMin && room <= tMax;
+  tags.push(inside ? ["info", "Within tested rooms"] : ["warn", "Outside tested rooms"]);
+  if (air < Math.min(...airs) - .3 || air > Math.max(...airs) + .3) tags.push(["warn", "Chamber air not tested"]);
+  tags.push(m.stepTest ? ["info", "Tested at different B setpoints"] : ["warn", "Needs a test at a new B setpoint"]);
+  $("tags").innerHTML = tags.map(([c, t]) => `<span class="tag ${c}">${t}</span>`).join("");
+
+  const g = m.gain(now.sp.mid, room, air);
+  const sens = `A 0.2 K error at B moves A by about ${fmt(0.2 * g.lo, 1)} to ${fmt(0.2 * g.hi, 1)} K.`;
+  $("message").textContent = msg ? `${msg} ${sens}` : sens;
+  $("message").className = alert ? "note alert" : "note";
+
+  good.forEach(r => {
+    const i = rows.indexOf(r), mid = (r.low + r.high) / 2, ma = m.predictA(r.b, r.room, r.air);
+    if ($(`row${i}-model`)) $(`row${i}-model`).textContent = fmt(ma);
+    if ($(`row${i}-err`)) $(`row${i}-err`).textContent = signed(ma - mid);
+  });
+  const worst = Math.max(...good.map(r => Math.abs(m.predictA(r.b, r.room, r.air) - (r.low + r.high) / 2)));
+  const spare = good.length - m.unknowns;
+  $("fitStatus").textContent = spare > 0
+    ? `Worst test error ${fmt(worst)} K across ${good.length} tests`
+    : "These tests set the curve but cannot check it yet.";
+  $("fitStatus").className = spare > 0 && worst > .5 ? "note alert" : "note";
+  const cold = m.at(tMin, air, target).sp.mid, coldA = m.aBand(cold, tMin, air);
+  $("nextTest").textContent = m.stepTest
+    ? "A test at a different B setpoint is included, so the setpoint now comes from your own data."
+    : `Next test: at about ${fmt(tMin, 1)} °C room, set B to ${fmt(cold, 1)} °C and let it settle. A should reach ${fmt(coldA.lo, 1)} to ${fmt(coldA.hi, 1)} °C. Add that row to pin down how strongly B controls A.`;
+
+  const curveKey = JSON.stringify([air, target]);
+  if (cache.curveKey !== curveKey) {
+    const list = [];
+    for (let t = 14; t <= Math.min(32, air - 1) + 1e-9; t += 1) {
+      const p = { t, ...m.at(t, air, target) };
+      if (p.q.mid > 0) list.push(p);
+    }
+    cache.curveKey = curveKey;
+    cache.curve = list;
+  }
+  const c = cache.curve;
+  if (c.length < 2) return fail("The heater would be off across these room temperatures, so no setpoint can hold A on target.");
+  const zones = [[c[0].t, tMin], [tMax, c[c.length - 1].t]];
+  const xs = c.map(p => p.t), ys = c.map(p => p.sp.mid), n = xs.length;
+  const mx = xs.reduce((a, b) => a + b) / n, my = ys.reduce((a, b) => a + b) / n;
+  const slope = xs.reduce((a, x, i) => a + (x - mx) * (ys[i] - my), 0) / xs.reduce((a, x) => a + (x - mx) ** 2, 0);
+  const lineErr = Math.max(...xs.map((x, i) => Math.abs(my + slope * (x - mx) - ys[i])));
+  $("formula").textContent = `Controller rule for A target ${fmt(target, 1)} °C: B setpoint = ${fmt(my - slope * mx)} + ${slope.toFixed(3)} × room. Within ${fmt(lineErr)} K of the curve, ${fmt(xs[0], 0)} to ${fmt(xs[n - 1], 0)} °C room.`;
+  chart($("offsetChart"), {
+    label: "Offset against room temperature", yName: "Offset (K)", digits: 0, zones, room,
+    series: [{ color: "--accent", pts: c.map(p => ({ t: p.t, ...p.off })) }],
+    marks: [{ v: now.off.mid, color: "--accent" }]
+  });
+  chart($("setpointChart"), {
+    label: "B setpoint against room temperature", yName: "B setpoint (°C)", digits: 1, zones, room,
+    series: [{ color: "--accent", pts: c.map(p => ({ t: p.t, ...p.sp })) }],
+    marks: [{ v: now.sp.mid, color: "--accent" }]
+  });
+}
+
+function fail(text) {
+  for (const id of ["offset", "spValue", "powerValue"]) $(id).textContent = "–";
+  for (const id of ["offsetRange", "spRange", "powerRange", "fitStatus", "nextTest", "formula"]) $(id).textContent = "";
+  $("tags").innerHTML = `<span class="tag crit">Check the inputs</span>`;
+  $("message").textContent = text;
+  $("message").className = "note alert";
+  $("offsetChart").innerHTML = "";
+  $("setpointChart").innerHTML = "";
+}
+
+function chart(box, o) {
+  const W = Math.max(box.clientWidth, 280), H = 280, pad = { l: 48, r: 14, t: 12, b: 38 };
+  const pts = o.series[0].pts, x0 = pts[0].t, x1 = pts[pts.length - 1].t;
+  const vals = o.series.flatMap(s => s.pts.flatMap(p => [p.lo, p.hi]));
+  let yMin = Math.min(...vals), yMax = Math.max(...vals);
+  const raw = (yMax - yMin) / 6, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const yStep = [1, 2, 5, 10].map(k => k * mag).find(v => v >= raw);
+  yMin = Math.floor(yMin / yStep) * yStep;
+  yMax = Math.ceil(yMax / yStep) * yStep;
+  const X = t => pad.l + (t - x0) / (x1 - x0) * (W - pad.l - pad.r);
+  const Y = v => H - pad.b - (v - yMin) / ((yMax - yMin) || 1) * (H - pad.t - pad.b);
+  const digits = yStep < 1 ? 1 : 0;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${o.label}">`;
+  for (const [a, b] of o.zones) {
+    const l = Math.max(a, x0), r = Math.min(b, x1);
+    if (r > l) s += `<rect x="${X(l)}" y="${pad.t}" width="${X(r) - X(l)}" height="${H - pad.t - pad.b}" fill="var(--muted)" fill-opacity=".12"/>`;
+  }
+  for (let v = yMin; v <= yMax + yStep / 100; v += yStep) {
+    const zero = Math.abs(v) < yStep / 100;
+    s += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(${zero ? "--muted" : "--line"})"/>`
+      + `<text x="${pad.l - 8}" y="${Y(v) + 4}" text-anchor="end">${(zero ? 0 : v).toFixed(digits)}</text>`;
+  }
+  const xStep = W < 460 ? 4 : 2;
+  for (let t = Math.ceil(x0 / xStep) * xStep; t <= x1; t += xStep) {
+    s += `<text x="${X(t)}" y="${H - pad.b + 18}" text-anchor="middle">${t}</text>`;
+  }
+  s += `<text x="${(pad.l + W - pad.r) / 2}" y="${H - 4}" text-anchor="middle">Room temperature (°C)</text>`;
+  s += `<text x="${pad.l + 4}" y="${pad.t + 12}">${o.yName}</text>`;
+  for (const a of o.series) {
+    const band = a.pts.map(p => `${X(p.t)},${Y(p.hi)}`).concat(a.pts.slice().reverse().map(p => `${X(p.t)},${Y(p.lo)}`)).join(" ");
+    s += `<polygon points="${band}" fill="var(${a.color})" fill-opacity=".16" stroke="none"/>`;
+    s += `<polyline points="${a.pts.map(p => `${X(p.t)},${Y(p.mid)}`).join(" ")}" fill="none" stroke="var(${a.color})" stroke-width="2.5"/>`;
+  }
+  if (o.room >= x0 && o.room <= x1) {
+    s += `<line x1="${X(o.room)}" x2="${X(o.room)}" y1="${pad.t}" y2="${H - pad.b}" stroke="var(--fg)"/>`;
+    for (const k of o.marks) s += `<circle cx="${X(o.room)}" cy="${Y(k.v)}" r="4.5" fill="var(${k.color})"/>`;
+    const right = X(o.room) + 6 + 56 < W - pad.r;
+    s += `<text x="${right ? X(o.room) + 6 : X(o.room) - 6}" y="${pad.t + 26}" text-anchor="${right ? "start" : "end"}" style="fill:var(--fg)">${o.room.toFixed(1)} °C</text>`;
+  }
+  box.innerHTML = s + "</svg>";
+}
+
+function boot() {
+  load();
+  drawRows();
+  $("room").addEventListener("input", () => { $("roomSlider").value = $("room").value; update(); });
+  $("roomSlider").addEventListener("input", () => { $("room").value = $("roomSlider").value; update(); });
+  ["chamber", "target", "plateLen", "padArea", "padPower"].forEach(id => $(id).addEventListener("input", update));
+  $("form").addEventListener("submit", e => e.preventDefault());
+  $("rows").addEventListener("input", e => {
+    const { i, k } = e.target.dataset;
+    if (i === undefined) return;
+    rows[+i][k] = parseFloat(e.target.value);
+    update();
+  });
+  $("rows").addEventListener("click", e => {
+    const i = e.target.dataset.remove;
+    if (i === undefined) return;
+    rows.splice(+i, 1);
+    cache.key = "";
+    drawRows();
+    update();
+  });
+  $("addRow").addEventListener("click", () => {
+    const last = rows[rows.length - 1];
+    rows.push({ room: NaN, b: last ? last.b : NaN, low: NaN, high: NaN, air: parseFloat($("chamber").value) });
+    drawRows();
+    update();
+    $(`row${rows.length - 1}-room`).focus();
+  });
+  $("resetRows").addEventListener("click", () => {
+    rows = DEFAULT_ROWS.map(r => ({ ...r }));
+    drawRows();
+    update();
+  });
+  if (window.ResizeObserver) {
+    let w = 0;
+    new ResizeObserver(() => {
+      const n = $("offsetChart").clientWidth;
+      if (n !== w) { w = n; update(); }
+    }).observe($("offsetChart"));
+  }
+  update();
+}
+boot();
+</script>
+</body>
+</html>
